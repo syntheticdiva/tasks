@@ -40,4 +40,8 @@ JWT_SECRET=mySuperSecretKeyWithAtLeast32Characters123
 
 bash
 docker-compose up --build
+<<<<<<< HEAD
 Приложение будет доступно на http://localhost:8080
+=======
+Приложение будет доступно на http://localhost:8080
+>>>>>>> origin/master
