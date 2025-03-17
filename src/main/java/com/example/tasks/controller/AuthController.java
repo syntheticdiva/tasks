@@ -16,23 +16,35 @@ import org.springframework.security.authentication.UsernamePasswordAuthenticatio
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+/**
+ * Контроллер для обработки запросов аутентификации и регистрации пользователей.
+ * <p>
+ * Обеспечивает endpoints для входа в систему, регистрации обычных пользователей и администраторов.
+ * Использует JWT для аутентификации и Spring Security для управления доступом.
+ * </p>
+ *
+ * @author AlinaSheveleva
+ * @version 1.0
+ */
 @RestController
-@RequestMapping(AuthController.API_AUTH_PATH)
+@RequestMapping("/api/auth")
 @RequiredArgsConstructor
 public class AuthController {
-    public static final String API_AUTH_PATH = "/api/auth";
-    private static final String LOGIN_PATH = "/login";
-    private static final String REGISTER_USER_PATH = "/register/user";
-    private static final String REGISTER_ADMIN_PATH = "/register/admin";
-
     private final AuthenticationManager authenticationManager;
     private final JwtUtil jwtUtil;
     private final UserService userService;
 
-    @PostMapping(LOGIN_PATH)
-    public ResponseEntity<AuthResponse> login(@Valid @org.springframework.web.bind.annotation.RequestBody AuthRequest request) {
+    /**
+     * Аутентифицирует пользователя и возвращает JWT-токен.
+     *
+     * @param request DTO с учетными данными (email и пароль)
+     * @return ответ с JWT-токеном в формате {@link AuthResponse}
+     */
+    @PostMapping("/login")
+    public ResponseEntity<AuthResponse> login(@Valid @RequestBody AuthRequest request) {
         Authentication authentication = authenticationManager.authenticate(
                 new UsernamePasswordAuthenticationToken(request.getEmail(), request.getPassword()));
 
@@ -41,14 +53,26 @@ public class AuthController {
         return ResponseEntity.ok(new AuthResponse(token));
     }
 
-    @PostMapping(REGISTER_USER_PATH)
-    public ResponseEntity<User> registerUser(@Valid @org.springframework.web.bind.annotation.RequestBody RegisterRequest request) {
+    /**
+     * Регистрирует нового пользователя с ролью ROLE_USER.
+     *
+     * @param request DTO с регистрационными данными (email и пароль)
+     * @return созданный пользователь с статусом 201 Created
+     */
+    @PostMapping("/register/user")
+    public ResponseEntity<User> registerUser(@Valid @RequestBody RegisterRequest request) {
         User user = userService.createUser(request.getEmail(), request.getPassword());
         return ResponseEntity.status(HttpStatus.CREATED).body(user);
     }
 
-    @PostMapping(REGISTER_ADMIN_PATH)
-    public ResponseEntity<User> registerAdmin(@Valid @org.springframework.web.bind.annotation.RequestBody RegisterRequest request) {
+    /**
+     * Регистрирует нового пользователя с ролью ROLE_ADMIN.
+     *
+     * @param request DTO с регистрационными данными (email и пароль)
+     * @return созданный администратор с статусом 201 Created
+     */
+    @PostMapping("/register/admin")
+    public ResponseEntity<User> registerAdmin(@Valid @RequestBody RegisterRequest request) {
         User user = userService.createAdmin(request.getEmail(), request.getPassword());
         return ResponseEntity.status(HttpStatus.CREATED).body(user);
     }

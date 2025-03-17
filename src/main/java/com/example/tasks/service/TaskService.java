@@ -33,6 +33,16 @@ import org.springframework.validation.annotation.Validated;
 import java.util.List;
 import java.util.stream.Collectors;
 
+/**
+ * Сервис для управления задачами и связанными сущностями.
+ * <p>
+ * Обеспечивает бизнес-логику для операций CRUD с задачами, обработку комментариев,
+ * фильтрацию и пагинацию. Интегрируется с системой безопасности для проверки прав доступа.
+ * </p>
+ *
+ * @author AlinaSheveleva
+ * @version 1.0
+ */
 @Service
 @Validated
 public class TaskService {
@@ -52,7 +62,13 @@ public class TaskService {
         this.taskMapper = taskMapper;
         this.commentMapper = commentMapper;
     }
-
+    /**
+     * Получает список задач по ID автора.
+     *
+     * @param authorId ID автора задач (должно быть >= 1)
+     * @return список DTO задач
+     * @throws UserNotFoundException если автор не найден
+     */
     public List<TaskDTO> getTasksByAuthor(@NotNull @Min(MIN_ID_VALUE) Long authorId) {
         logger.info("Attempting to find tasks for author ID: {}", authorId);
 
@@ -69,6 +85,13 @@ public class TaskService {
                 .collect(Collectors.toList());
     }
 
+    /**
+     * Получает список задач по ID исполнителя.
+     *
+     * @param assigneeId ID исполнителя (должно быть >= 1)
+     * @return список DTO задач
+     * @throws UserNotFoundException если исполнитель не найден
+     */
     public List<TaskDTO> getTasksByAssignee(Long assigneeId) {
         if (!userRepository.existsById(assigneeId)) {
             throw new UserNotFoundException("Исполнитель с ID " + assigneeId + " не найден");
@@ -79,6 +102,18 @@ public class TaskService {
                 .map(taskMapper::toTaskDTO)
                 .collect(Collectors.toList());
     }
+    /**
+     * Создает новую задачу
+     *
+     * @param title название задачи (обязательно)
+     * @param description описание задачи (обязательно)
+     * @param status статус задачи (по умолчанию PENDING)
+     * @param priority приоритет задачи (по умолчанию MEDIUM)
+     * @param author автор задачи (обязательно)
+     * @param assigneeId ID исполнителя (обязательно)
+     * @return созданная задача в формате DTO
+     * @throws UserNotFoundException если исполнитель не найден
+     */
     @Transactional
     public TaskDTO createTask(
             @NotNull String title,
@@ -103,7 +138,19 @@ public class TaskService {
         Task savedTask = taskRepository.save(task);
         return taskMapper.toTaskDTO(savedTask);
     }
-
+    /**
+     * Обновляет существующую задачу.
+     *
+     * @param taskId ID задачи для обновления
+     * @param title новое название (если не null)
+     * @param description новое описание (если не null)
+     * @param status новый статус (если не null)
+     * @param priority новый приоритет (если не null)
+     * @param assigneeId новый ID исполнителя (если не null)
+     * @return обновленная задача в формате DTO
+     * @throws TaskNotFoundException если задача не найдена
+     * @throws UserNotFoundException если новый исполнитель не найден
+     */
     public TaskDTO updateTask(
             @NotNull Long taskId,
             String title,
@@ -138,6 +185,12 @@ public class TaskService {
         return taskMapper.toTaskDTO(updatedTask);
     }
 
+    /**
+     * Удаляет задачу по ID.
+     *
+     * @param taskId ID задачи для удаления (не может быть null)
+     * @throws TaskNotFoundException если задача не найдена
+     */
     public void deleteTask(@NotNull Long taskId) {
         logger.info("Deleting task with ID: {}", taskId);
         Task task = taskRepository.findById(taskId)
@@ -145,6 +198,15 @@ public class TaskService {
         taskRepository.delete(task);
     }
 
+    /**
+     * Назначает задачу исполнителю.
+     *
+     * @param taskId ID задачи (не null)
+     * @param assigneeId ID исполнителя (не null)
+     * @return обновленная задача в формате DTO
+     * @throws TaskNotFoundException если задача не найдена
+     * @throws UserNotFoundException если исполнитель не найден
+     */
     public TaskDTO assignTask(
             @NotNull(message = "Task ID cannot be null") Long taskId,
             @NotNull(message = "Assignee ID cannot be null") Long assigneeId) {
@@ -169,6 +231,19 @@ public class TaskService {
         logger.info("Task ID: {} successfully assigned to user ID: {}", taskId, assigneeId);
         return taskMapper.toTaskDTO(assignedTask);
     }
+    /**
+     * Получает задачи с фильтрацией и пагинацией.
+     *
+     * @param status фильтр по статусу
+     * @param priority фильтр по приоритету
+     * @param authorId фильтр по ID автора
+     * @param assigneeId фильтр по ID исполнителя
+     * @param page номер страницы (>= 0)
+     * @param size размер страницы (1-100)
+     * @return страница с DTO задач
+     * @throws InvalidRequestException при невалидных параметрах пагинации
+     * @throws TaskNotFoundException если задачи не найдены
+     */
     public Page<TaskDTO> getTasks(
             TaskStatus status,
             TaskPriority priority,
@@ -209,7 +284,16 @@ public class TaskService {
 
         return tasks.map(taskMapper::toTaskDTO);
     }
-
+    /**
+     * Добавляет комментарий к задаче.
+     *
+     * @param taskId ID задачи
+     * @param text текст комментария
+     * @param author автор комментария
+     * @return созданный комментарий в формате DTO
+     * @throws TaskNotFoundException если задача не найдена
+     * @throws UnauthorizedActionException если пользователь не имеет прав на комментарий
+     */
     public CommentDTO addComment(@NotNull Long taskId, @NotNull String text, @NotNull User author) {
         logger.info("Adding comment to task with ID: {}", taskId);
         Task task = taskRepository.findById(taskId)
@@ -228,7 +312,14 @@ public class TaskService {
         Comment savedComment = commentRepository.save(comment);
         return commentMapper.toCommentDTO(savedComment);
     }
-
+    /**
+     * Обновляет приоритет задачи.
+     *
+     * @param taskId ID задачи для обновления (не может быть null)
+     * @param priority новый приоритет задачи (не может быть null)
+     * @return обновленная задача в формате DTO
+     * @throws TaskNotFoundException если задача не найдена
+     */
     @Transactional
     public TaskDTO updateTaskPriority(@NotNull Long taskId, @NotNull TaskPriority priority) {
         logger.info("Updating priority of task with ID: {}", taskId);
@@ -240,7 +331,16 @@ public class TaskService {
 
         return taskMapper.toTaskDTO(updatedTask);
     }
-
+    /**
+     * Обновляет статус задачи с проверкой прав доступа.
+     *
+     * @param taskId ID задачи
+     * @param status новый статус
+     * @param currentUser текущий пользователь
+     * @return обновленная задача в формате DTO
+     * @throws TaskNotFoundException если задача не найдена
+     * @throws AccessDeniedException если пользователь не имеет прав на изменение
+     */
     public TaskDTO updateTaskStatus(@NotNull Long taskId, @NotNull TaskStatus status, @NotNull User currentUser) {
         logger.info("Updating status of task with ID: {}", taskId);
         Task task = taskRepository.findById(taskId)
@@ -257,6 +357,13 @@ public class TaskService {
         return taskMapper.toTaskDTO(updatedTask);
     }
 
+    /**
+     * Получает все задачи с пагинацией (только для администраторов).
+     *
+     * @param page номер страницы (>= 0)
+     * @param size размер страницы (1-100)
+     * @return страница с DTO задач
+     */
     public Page<TaskDTO> getAllTasks(int page, int size) {
         logger.info("Fetching all tasks with page={}, size={}", page, size);
         validatePageAndSize(page, size);
@@ -267,6 +374,13 @@ public class TaskService {
         return tasks.map(taskMapper::toTaskDTO);
     }
 
+    /**
+     * Валидирует параметры пагинации.
+     *
+     * @param page номер страницы
+     * @param size размер страницы
+     * @throws InvalidRequestException если параметры не соответствуют ограничениям
+     */
     private void validatePageAndSize(int page, int size) {
         if (page < 0) {
             throw new InvalidRequestException("Page number must not be less than zero");

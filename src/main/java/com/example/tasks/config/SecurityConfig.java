@@ -15,11 +15,33 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
+/**
+ * Конфигурация безопасности приложения.
+ * <p>
+ * Настраивает:
+ * <ul>
+ *   <li>Правила доступа к эндпоинтам</li>
+ *   <li>JWT-аутентификацию</li>
+ *   <li>CORS политики</li>
+ *   <li>Кодирование паролей</li>
+ *   <li>Управление сессиями</li>
+ * </ul>
+ */
 @Configuration
 @EnableWebSecurity
 @EnableMethodSecurity
 public class SecurityConfig {
 
+    /**
+     * Внутренний класс с константами безопасности.
+     * <p>
+     * Содержит пути, доступные без аутентификации:
+     * <ul>
+     *   <li>Эндпоинты аутентификации</li>
+     *   <li>Документация Swagger</li>
+     *   <li>Статические ресурсы</li>
+     * </ul>
+     */
     private static final class SecurityConstants {
         private static final String[] PUBLIC_PATHS = {
                 "/api/auth/**",
@@ -29,14 +51,6 @@ public class SecurityConfig {
                 "/swagger-resources/**",
                 "/swagger-ui.html"
         };
-
-        private static final String ADMIN_PATH_PATTERN = "/admin/**";
-        private static final String ROLE_ADMIN = "ADMIN";
-        private static final String ALL_ORIGINS = "*";
-        private static final String ALL_METHODS = "*";
-        private static final String ALL_HEADERS = "*";
-        private static final String CORS_PATH_PATTERN = "/**";
-        private static final SessionCreationPolicy SESSION_POLICY = SessionCreationPolicy.STATELESS;
     }
 
     private final JwtRequestFilter jwtRequestFilter;
@@ -45,6 +59,13 @@ public class SecurityConfig {
         this.jwtRequestFilter = jwtRequestFilter;
     }
 
+    /**
+     * Конфигурирует цепочку фильтров безопасности.
+     *
+     * @param http объект конфигурации HTTP безопасности
+     * @return сконфигурированная цепочка фильтров
+     * @throws Exception при ошибках конфигурации
+     */
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
@@ -52,33 +73,57 @@ public class SecurityConfig {
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(SecurityConstants.PUBLIC_PATHS).permitAll()
-                        .requestMatchers(SecurityConstants.ADMIN_PATH_PATTERN).hasRole(SecurityConstants.ROLE_ADMIN)
+                        .requestMatchers("/admin/**").hasRole("ADMIN")
                         .anyRequest().authenticated()
                 )
                 .sessionManagement(session ->
-                        session.sessionCreationPolicy(SecurityConstants.SESSION_POLICY))
+                        session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .addFilterBefore(jwtRequestFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
     }
 
+    /**
+     * Конфигурирует политики CORS.
+     * <p>
+     * Разрешает:
+     * <ul>
+     *   <li>Все источники</li>
+     *   <li>Все HTTP-методы</li>
+     *   <li>Все заголовки</li>
+     * </ul>
+     *
+     * @return источник конфигурации CORS
+     */
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
-        configuration.addAllowedOrigin(SecurityConstants.ALL_ORIGINS);
-        configuration.addAllowedMethod(SecurityConstants.ALL_METHODS);
-        configuration.addAllowedHeader(SecurityConstants.ALL_HEADERS);
+        configuration.addAllowedOrigin("*");
+        configuration.addAllowedMethod("*");
+        configuration.addAllowedHeader("*");
 
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
-        source.registerCorsConfiguration(SecurityConstants.CORS_PATH_PATTERN, configuration);
+        source.registerCorsConfiguration("/**", configuration);
         return source;
     }
 
+    /**
+     * Создает кодировщик паролей BCrypt.
+     *
+     * @return реализация {@link PasswordEncoder} с алгоритмом BCrypt
+     */
     @Bean
     public PasswordEncoder passwordEncoder() {
         return new BCryptPasswordEncoder();
     }
 
+    /**
+     * Предоставляет менеджер аутентификации Spring.
+     *
+     * @param authenticationConfiguration конфигурация аутентификации
+     * @return менеджер аутентификации
+     * @throws Exception при ошибках получения менеджера
+     */
     @Bean
     public AuthenticationManager authenticationManager(AuthenticationConfiguration authenticationConfiguration)
             throws Exception {

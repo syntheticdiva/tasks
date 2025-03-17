@@ -16,6 +16,16 @@ import org.springframework.stereotype.Service;
 import java.util.Set;
 import java.util.regex.Pattern;
 
+/**
+ * Сервис для управления пользователями системы.
+ * <p>
+ * Обеспечивает регистрацию новых пользователей, создание администраторов,
+ * валидацию учетных данных и обработку бизнес-правил для сущности {@link User}.
+ * </p>
+ *
+ * @author AlinaSheveleva
+ * @version 1.0
+ */
 @Service
 @RequiredArgsConstructor
 public class UserService {
@@ -30,6 +40,18 @@ public class UserService {
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
 
+    /**
+     * Регистрирует нового пользователя в системе.
+     *
+     * @param email    электронная почта (должна соответствовать формату)
+     * @param password пароль (не менее 8 символов, минимум 1 цифра и 1 буква)
+     * @param roles    набор ролей пользователя (не может быть пустым)
+     * @return зарегистрированный пользователь
+     * @throws EmailAlreadyExistsException если email уже зарегистрирован
+     * @throws InvalidEmailException       при невалидном формате email
+     * @throws InvalidPasswordException    при нарушении требований к паролю
+     * @throws InvalidRoleException        если не указаны роли
+     */
     public User registerUser(String email, String password, Set<Role> roles) {
         validateEmail(email);
         validatePassword(password);
@@ -51,14 +73,36 @@ public class UserService {
         }
     }
 
+    /**
+     * Создает пользователя с ролью администратора.
+     *
+     * @param email    электронная почта
+     * @param password пароль
+     * @return пользователь с ролью ROLE_ADMIN
+     */
     public User createAdmin(String email, String password) {
         return registerUser(email, password, Set.of(Role.ROLE_ADMIN));
     }
 
+    /**
+     * Создает обычного пользователя.
+     *
+     * @param email    электронная почта
+     * @param password пароль
+     * @return пользователь с ролью ROLE_USER
+     */
     public User createUser(String email, String password) {
         return registerUser(email, password, Set.of(Role.ROLE_USER));
     }
 
+    /**
+     * Валидирует формат электронной почты.
+     *
+     * @param email проверяемый email
+     * @throws InvalidEmailException если email:
+     * - пустой
+     * - не соответствует формату name@domain.com
+     */
     private void validateEmail(String email) {
         if (email == null || email.isBlank()) {
             throw new InvalidEmailException("Email cannot be empty");
@@ -69,6 +113,17 @@ public class UserService {
         }
     }
 
+    /**
+     * Валидирует пароль по критериям:
+     * <ul>
+     *   <li>Не менее 8 символов</li>
+     *   <li>Содержит минимум 1 цифру</li>
+     *   <li>Содержит минимум 1 букву</li>
+     * </ul>
+     *
+     * @param password проверяемый пароль
+     * @throws InvalidPasswordException при нарушении любого из требований
+     */
     private void validatePassword(String password) {
         if (password == null || password.isBlank()) {
             throw new InvalidPasswordException("Password cannot be empty");
@@ -88,6 +143,14 @@ public class UserService {
         }
     }
 
+    /**
+     * Проверяет валидность набора ролей.
+     *
+     * @param roles набор ролей
+     * @throws InvalidRoleException если:
+     * - roles == null
+     * - набор ролей пуст
+     */
     private void validateRoles(Set<Role> roles) {
         if (roles == null || roles.isEmpty()) {
             throw new InvalidRoleException("User must have at least one role");

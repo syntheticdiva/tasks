@@ -10,13 +10,10 @@ import com.example.tasks.exception.UserNotFoundException;
 import com.example.tasks.service.TaskService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
-import io.swagger.v3.oas.annotations.media.Content;
-import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
-import jakarta.validation.constraints.Min;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -30,27 +27,32 @@ import org.springframework.web.server.ResponseStatusException;
 
 import java.util.List;
 
+/**
+ * Контроллер для управления задачами.
+ * <p>
+ * Обеспечивает REST API для операций CRUD с задачами, управления комментариями,
+ * фильтрации и назначения задач. Интегрирован с Spring Security и JWT аутентификацией.
+ * Документирован с использованием Swagger/OpenAPI.
+ * </p>
+ *
+ * @author AlinaSheveleva
+ * @version 1.0
+ */
 @RestController
-@RequestMapping(TaskController.API_TASKS_PATH)
+@RequestMapping("/api/tasks")
 @Tag(name = "Task Management", description = "API для управления задачами")
 @SecurityRequirement(name = "Bearer Authentication")
 @RequiredArgsConstructor
 public class TaskController {
-    public static final String API_TASKS_PATH = "/api/tasks";
-    private static final String AUTHOR_PATH = "/author/{authorId}";
-    private static final String ASSIGNEE_PATH = "/assignee/{assigneeId}";
-    private static final String CREATE_PATH = "/create";
-    private static final String TASK_ID_PATH = "/{taskId}";
-    private static final String COMMENTS_PATH = "/comments";
-    private static final String PRIORITY_PATH = "/priority";
-    private static final String STATUS_PATH = "/status";
-    private static final String ASSIGN_PATH = "/assign";
-    private static final String ADMIN_ALL_PATH = "/admin/all";
-
     private static final Logger logger = LoggerFactory.getLogger(TaskController.class);
-
     private final TaskService taskService;
 
+    /**
+     * Получает задачи по ID автора.
+     *
+     * @param authorId ID автора (>= 1)
+     * @return список DTO задач
+     * */
     @Operation(
             summary = "Получить задачи по автору",
             responses = {
@@ -60,7 +62,7 @@ public class TaskController {
             }
     )
     @PreAuthorize("hasAnyRole('ADMIN', 'USER')")
-    @GetMapping(AUTHOR_PATH)
+    @GetMapping("/author/{authorId}")
     public ResponseEntity<List<TaskDTO>> getTasksByAuthor(
             @Parameter(description = "ID автора задачи") @PathVariable Long authorId) {
         List<TaskDTO> tasks = taskService.getTasksByAuthor(authorId);
@@ -76,13 +78,20 @@ public class TaskController {
             }
     )
     @PreAuthorize("hasAnyRole('ADMIN', 'USER')")
-    @GetMapping(ASSIGNEE_PATH)
+    @GetMapping("/assignee/{assigneeId}")
     public ResponseEntity<List<TaskDTO>> getTasksByAssignee(
             @PathVariable Long assigneeId) {
         List<TaskDTO> tasks = taskService.getTasksByAssignee(assigneeId);
         return ResponseEntity.ok(tasks);
     }
 
+    /**
+     * Создает новую задачу.
+     *
+     * @param request DTO с данными задачи
+     * @param authentication данные аутентификации
+     * @return созданная задача (201 Created)
+     */
     @Operation(
             summary = "Создать новую задачу",
             responses = {
@@ -92,7 +101,7 @@ public class TaskController {
             }
     )
     @PreAuthorize("hasRole('ADMIN')")
-    @PostMapping(CREATE_PATH)
+    @PostMapping("/create")
     public ResponseEntity<TaskDTO> createTask(
             @Valid @RequestBody CreateTaskRequest request,
             Authentication authentication) {
@@ -108,6 +117,13 @@ public class TaskController {
         return ResponseEntity.status(HttpStatus.CREATED).body(taskDTO);
     }
 
+    /**
+     * Обновляет существующую задачу.
+     *
+     * @param taskId ID обновляемой задачи
+     * @param request DTO с обновляемыми полями
+     * @return обновленная задача
+     */
     @Operation(
             summary = "Обновить задачу",
             responses = {
@@ -118,7 +134,7 @@ public class TaskController {
             }
     )
     @PreAuthorize("hasRole('ADMIN')")
-    @PutMapping(TASK_ID_PATH)
+    @PutMapping("/{taskId}")
     public ResponseEntity<TaskDTO> updateTask(
             @Parameter(description = "ID задачи") @PathVariable Long taskId,
             @Valid @RequestBody UpdateTaskRequest request) {
@@ -133,6 +149,14 @@ public class TaskController {
         return ResponseEntity.ok(taskDTO);
     }
 
+    /**
+     * Добавляет комментарий к задаче.
+     *
+     * @param taskId ID задачи
+     * @param request DTO с текстом комментария
+     * @param authentication данные аутентификации
+     * @return созданный комментарий (201 Created)
+     */
     @Operation(
             summary = "Добавить комментарий к задаче",
             responses = {
@@ -143,7 +167,7 @@ public class TaskController {
             }
     )
     @PreAuthorize("hasAnyRole('ADMIN', 'USER')")
-    @PostMapping(TASK_ID_PATH + COMMENTS_PATH)
+    @PostMapping("/{taskId}/comments")
     public ResponseEntity<CommentDTO> addComment(
             @Parameter(description = "ID задачи") @PathVariable Long taskId,
             @Valid @RequestBody AddCommentRequest request,
@@ -163,7 +187,7 @@ public class TaskController {
             }
     )
     @PreAuthorize("hasRole('ADMIN')")
-    @PatchMapping(TASK_ID_PATH + PRIORITY_PATH)
+    @PatchMapping("/{taskId}/priority")
     public ResponseEntity<TaskDTO> updateTaskPriority(
             @Parameter(description = "ID задачи") @PathVariable Long taskId,
             @Valid @RequestBody UpdatePriorityRequest request) {
@@ -180,7 +204,7 @@ public class TaskController {
                     @ApiResponse(responseCode = "404", description = "Задача не найдена")
             }
     )
-    @PutMapping(TASK_ID_PATH + STATUS_PATH)
+    @PutMapping("/{taskId}/status")
     public ResponseEntity<TaskDTO> updateTaskStatus(
             @Parameter(description = "ID задачи") @PathVariable Long taskId,
             @Valid @RequestBody UpdateTaskStatusRequest request,
@@ -190,6 +214,11 @@ public class TaskController {
         return ResponseEntity.ok(taskDTO);
     }
 
+    /**
+     * Удаляет задачу
+     * @param taskId ID удаляемой задачи
+     * @return HTTP 204 при успешном удалении
+     */
     @Operation(
             summary = "Удалить задачу",
             responses = {
@@ -199,13 +228,20 @@ public class TaskController {
             }
     )
     @PreAuthorize("hasRole('ADMIN')")
-    @DeleteMapping(TASK_ID_PATH)
+    @DeleteMapping("/{taskId}")
     public ResponseEntity<Void> deleteTask(
             @Parameter(description = "ID задачи") @PathVariable Long taskId) {
         taskService.deleteTask(taskId);
         return ResponseEntity.noContent().build();
     }
 
+    /**
+     * Назначает задачу исполнителю.
+     *
+     * @param taskId ID задачи
+     * @param assigneeId ID нового исполнителя
+     * @return обновленная задача
+     */
     @Operation(
             summary = "Назначить задачу исполнителю",
             responses = {
@@ -216,7 +252,7 @@ public class TaskController {
             }
     )
     @PreAuthorize("hasAnyRole('ADMIN', 'USER')")
-    @PostMapping(TASK_ID_PATH + ASSIGN_PATH + "/{assigneeId}")
+    @PostMapping("/{taskId}/assign/{assigneeId}")
     public ResponseEntity<TaskDTO> assignTask(
             @Parameter(description = "ID задачи") @PathVariable Long taskId,
             @Parameter(description = "ID исполнителя") @PathVariable Long assigneeId) {
@@ -232,6 +268,17 @@ public class TaskController {
         }
     }
 
+    /**
+     * Получает задачи с фильтрацией и пагинацией.
+     *
+     * @param status фильтр по статусу
+     * @param priority фильтр по приоритету
+     * @param authorId фильтр по автору
+     * @param assigneeId фильтр по исполнителю
+     * @param page номер страницы (0-based)
+     * @param size размер страницы (1-100)
+     * @return страница с результатами
+     */
     @Operation(
             summary = "Получить задачи с фильтрацией",
             responses = {
@@ -252,6 +299,12 @@ public class TaskController {
         return ResponseEntity.ok(tasks);
     }
 
+    /**
+     * Получает все задачи (администраторский доступ)
+     * @param page номер страницы (по умолчанию: 0)
+     * @param size размер страницы (по умолчанию: 20, максимум: 100)
+     * @return страница со всеми задачами и HTTP 200
+     */
     @Operation(
             summary = "Получить все задачи (только для админов)",
             responses = {
@@ -260,7 +313,7 @@ public class TaskController {
             }
     )
     @PreAuthorize("hasRole('ADMIN')")
-    @GetMapping(ADMIN_ALL_PATH)
+    @GetMapping("/admin/all")
     public ResponseEntity<Page<TaskDTO>> getAllTasks(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size) {
