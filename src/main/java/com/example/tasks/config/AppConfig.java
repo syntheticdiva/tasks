@@ -32,7 +32,7 @@ public class AppConfig implements EnvironmentAware {
      */
     @Override
     public void setEnvironment(Environment environment) {
-        File configFile = new File("./config.txt");
+        File configFile = new File("config.txt");
         if (!configFile.exists()) {
             throw new ConfigFileNotFoundException("Configuration file config.txt not found in root directory");
         }
